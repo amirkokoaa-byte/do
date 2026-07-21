@@ -90,7 +90,21 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error('Error fetching info:', error);
-      res.status(500).json({ detail: `حدث خطأ أثناء جلب الفيديو: ${error.message}` });
+      let errorMessage = error.message || 'حدث خطأ غير معروف';
+      
+      // Clean up common yt-dlp warnings from the error message
+      errorMessage = errorMessage.replace(/Deprecated Feature:.*\n/g, '');
+      errorMessage = errorMessage.replace(/WARNING:.*\n/g, '');
+      
+      if (errorMessage.includes('Sign in to confirm you’re not a bot') || errorMessage.includes('cookies')) {
+        errorMessage = 'يوتيوب يطلب تسجيل الدخول للتحقق من أنك لست روبوتاً. يرجى إضافة ملف cookies.txt إلى الخادم.';
+      } else if (errorMessage.includes('Video unavailable')) {
+        errorMessage = 'الفيديو غير متاح أو الرابط غير صحيح.';
+      } else if (errorMessage.includes('No video could be found')) {
+        errorMessage = 'لم يتم العثور على فيديو في هذا الرابط.';
+      }
+
+      res.status(500).json({ detail: `حدث خطأ أثناء جلب الفيديو: ${errorMessage}` });
     }
   });
 
