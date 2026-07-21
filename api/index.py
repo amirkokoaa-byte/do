@@ -2,6 +2,7 @@ import os
 import tempfile
 import base64
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse, RedirectResponse
 from pydantic import BaseModel
 import yt_dlp
 import requests
@@ -172,4 +173,34 @@ async def download_video(request: VideoRequest):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/proxy-download")
+def proxy_download(url: str, filename: str = "video.mp4"):
+    if not url:
+        raise HTTPException(status_code=400, detail="رابط الفيديو مطلوب")
+    try:
+        req = requests.get(
+            url, 
+            stream=True, 
+            timeout=25, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        )
+        if req.status_code != 200:
+            return RedirectResponse(url=url)
+            
+        def iterfile():
+            for chunk in req.iter_content(chunk_size=65536):
+                if chunk:
+                    yield chunk
+                    
+        return StreamingResponse(
+            iterfile(),
+            media_type=req.headers.get('content-type', 'video/mp4'),
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        print(f"Proxy download error: {e}")
+        return RedirectResponse(url=url)
 

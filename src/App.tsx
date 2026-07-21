@@ -304,13 +304,19 @@ export default function App() {
             {/* قسم تحميل الفيديو */}
             {result.videos && result.videos.length > 0 && (
               <div className="space-y-3 pt-2">
-                <h3 className="font-bold text-neutral-700 flex items-center gap-2 text-sm md:text-base">
-                  <Film className="w-5 h-5 text-blue-600" />
-                  <span>تحميل كـ فيديو (اختر الجودة):</span>
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <h3 className="font-bold text-neutral-700 flex items-center gap-2 text-sm md:text-base">
+                    <Film className="w-5 h-5 text-blue-600" />
+                    <span>تحميل كـ فيديو (اختر الجودة):</span>
+                  </h3>
+                  <span className="text-xs text-blue-700 font-medium bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 w-fit">
+                    📱 يدعم التحميل المباشر للجوال والكمبيوتر
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {result.videos.map((format: any, index: number) => {
                     const isSelected = selectedVideoUrl === format.url;
+                    const proxyDownloadUrl = `/api/proxy-download?url=${encodeURIComponent(format.url)}&filename=${encodeURIComponent('video_' + (index + 1) + '.' + (format.ext || 'mp4'))}`;
                     return (
                       <div
                         key={`vid-${index}`}
@@ -329,17 +335,28 @@ export default function App() {
                           <Play className="w-4 h-4 fill-blue-700 text-blue-700" />
                           <span>{format.quality}</span>
                         </button>
-                        <a
-                          href={format.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          referrerPolicy="no-referrer"
-                          download
-                          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>تحميل</span>
-                        </a>
+                        
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={proxyDownloadUrl}
+                            download={`video_${index + 1}.${format.ext || 'mp4'}`}
+                            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                            title="تحميل مباشر للجهاز"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>تحميل</span>
+                          </a>
+                          <a
+                            href={format.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            referrerPolicy="no-referrer"
+                            className="p-1.5 text-blue-600 hover:bg-blue-200/60 rounded-lg transition-colors"
+                            title="رابط مباشر في نافذة جديدة"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
                       </div>
                     );
                   })}
@@ -355,25 +372,35 @@ export default function App() {
                   <span>تحميل كـ صوت فقط:</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {result.audios.map((format: any, index: number) => (
-                    <a
-                      key={`aud-${index}`}
-                      href={format.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      referrerPolicy="no-referrer"
-                      download
-                      className="flex justify-between items-center px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-purple-700 font-medium transition-colors group"
-                    >
-                      <span className="text-sm font-semibold flex items-center gap-1.5">
-                        <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                        {format.quality}
-                      </span>
-                      <span className="text-xs bg-purple-200/80 px-2.5 py-1 rounded-md text-purple-900 uppercase font-mono">
-                        {format.ext}
-                      </span>
-                    </a>
-                  ))}
+                  {result.audios.map((format: any, index: number) => {
+                    const proxyAudioDownloadUrl = `/api/proxy-download?url=${encodeURIComponent(format.url)}&filename=${encodeURIComponent('audio_' + (index + 1) + '.' + (format.ext || 'mp3'))}`;
+                    return (
+                      <div
+                        key={`aud-${index}`}
+                        className="flex justify-between items-center px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-purple-700 font-medium transition-colors"
+                      >
+                        <span className="text-sm font-semibold flex items-center gap-1.5">
+                          <Music className="w-4 h-4 text-purple-600" />
+                          {format.quality}
+                        </span>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-purple-200/80 px-2 py-0.5 rounded text-purple-900 uppercase font-mono">
+                            {format.ext || 'mp3'}
+                          </span>
+                          <a
+                            href={proxyAudioDownloadUrl}
+                            download={`audio_${index + 1}.${format.ext || 'mp3'}`}
+                            className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                            title="تحميل الملف الصوتي"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>تحميل</span>
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -256,6 +256,52 @@ async function startServer() {
     }
   });
 
+  // Proxy endpoint to force file download on mobile devices and desktop
+  app.get('/api/proxy-download', async (req, res) => {
+    try {
+      const videoUrl = req.query.url as string;
+      const filename = (req.query.filename as string) || 'video.mp4';
+
+      if (!videoUrl) {
+        return res.status(400).send('رابط الفيديو مطلوب');
+      }
+
+      const response = await fetch(videoUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (!response.ok) {
+        return res.redirect(videoUrl);
+      }
+
+      const contentType = response.headers.get('content-type') || 'video/mp4';
+      const contentLength = response.headers.get('content-length');
+
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      res.setHeader('Content-Type', contentType);
+      if (contentLength) {
+        res.setHeader('Content-Length', contentLength);
+      }
+
+      if (response.body) {
+        // @ts-ignore
+        const { Readable } = await import('stream');
+        // @ts-ignore
+        Readable.fromWeb(response.body).pipe(res);
+      } else {
+        res.redirect(videoUrl);
+      }
+    } catch (err) {
+      console.error('Error in proxy-download:', err);
+      if (req.query.url) {
+        return res.redirect(req.query.url as string);
+      }
+      res.status(500).send('خطأ في تحويل ملف التحميل');
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
