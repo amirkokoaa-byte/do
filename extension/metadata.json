@@ -1,6 +1,0 @@
-{
-  "name": "YouTube Downloader Engine",
-  "description": "A video downloading engine powered by yt-dlp wrapped in a Node.js API.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
