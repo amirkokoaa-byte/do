@@ -1,8 +1,7 @@
 import os
 import tempfile
 import base64
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import yt_dlp
 import requests
@@ -173,33 +172,4 @@ async def download_video(request: VideoRequest):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/proxy-download")
-def proxy_download(url: str = Query(...), ext: str = Query("mp4"), filename: str = Query("video")):
-    if not url:
-        raise HTTPException(status_code=400, detail="URL parameter is required")
-    try:
-        req_headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-        res = requests.get(url, headers=req_headers, stream=True, timeout=30)
-        
-        safe_filename = f"{filename}.{ext}"
-        content_type = res.headers.get('Content-Type') or f"video/{ext}"
-        
-        def iterfile():
-            for chunk in res.iter_content(chunk_size=65536):
-                if chunk:
-                    yield chunk
-
-        headers = {
-            "Content-Disposition": f'attachment; filename="{safe_filename}"',
-            "Access-Control-Allow-Origin": "*",
-        }
-        if "Content-Length" in res.headers:
-            headers["Content-Length"] = res.headers["Content-Length"]
-
-        return StreamingResponse(iterfile(), media_type=content_type, headers=headers)
-    except Exception as e:
-        return RedirectResponse(url=url)
 
