@@ -225,11 +225,11 @@ async function startServer() {
       errorMessage = errorMessage.replace(/WARNING:.*\n/g, '');
       
       if (errorMessage.includes('Sign in to confirm you’re not a bot') || errorMessage.includes('cookies')) {
-        errorMessage = 'يوتيوب يطلب تسجيل الدخول للتحقق من أنك لست روبوتاً. يرجى إضافة ملف cookies.txt إلى الخادم.';
+        errorMessage = 'المنصة تطلب تسجيل الدخول للتحقق من أنك لست روبوتاً. يرجى إضافة ملف cookies.txt إلى الخادم.';
       } else if (errorMessage.includes('Video unavailable')) {
         errorMessage = 'الفيديو غير متاح أو الرابط غير صحيح.';
-      } else if (errorMessage.includes('No video could be found')) {
-        errorMessage = 'لم يتم العثور على فيديو في هذا الرابط.';
+      } else if (errorMessage.includes('No video could be found') || errorMessage.includes('No video formats found')) {
+        errorMessage = 'لم يتم العثور على فيديو في هذا الرابط، أو أن الموقع (مثل انستجرام/فيسبوك) يطلب تسجيل الدخول/الكوكيز للوصول إليه.';
       }
 
       console.error('Error fetching info:', errorMessage);

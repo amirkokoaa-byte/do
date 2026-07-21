@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clipboard, X, Trash2, History, Heart, Download, ExternalLink, Play, Film, Music } from 'lucide-react';
 
 interface HistoryItem {
@@ -21,7 +21,6 @@ export default function App() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // load history from localStorage
   useEffect(() => {
@@ -77,31 +76,22 @@ export default function App() {
     }
   };
 
-  // paste from clipboard with graceful iframe fallback
+  // paste from clipboard
   const handlePaste = async () => {
     try {
-      if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+      if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
         if (text) {
           setUrl(text.trim());
-          return;
         }
+      } else {
+        alert('خاصية الحافظة غير مدعومة في متصفحك بشكل مباشر، يرجى اللصق يدوياً.');
       }
-    } catch {
-      // Ignore clipboard permission errors silently when running inside an iframe
-    }
-
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-
-    try {
-      const text = window.prompt('ضع رابط الفيديو هنا:');
-      if (text) {
-        setUrl(text.trim());
-      }
-    } catch {
-      // Ignore prompt errors if blocked in iframe
+    } catch (err) {
+      console.error('Clipboard error:', err);
+      // Fallback
+      const text = prompt('ضع رابط الفيديو هنا:');
+      if (text) setUrl(text.trim());
     }
   };
 
@@ -192,7 +182,6 @@ export default function App() {
         <form onSubmit={(e) => fetchVideoInfo(e)} className="flex flex-col gap-4">
           <div className="relative flex items-center">
             <input
-              ref={inputRef}
               type="url"
               placeholder="ضع رابط الفيديو هنا..."
               value={url}
