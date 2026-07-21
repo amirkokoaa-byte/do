@@ -256,6 +256,53 @@ async function startServer() {
     }
   });
 
+  app.get('/api/proxy-download', async (req, res) => {
+    try {
+      const fileUrl = req.query.url as string;
+      const ext = (req.query.ext as string) || 'mp4';
+      const filename = (req.query.filename as string) || 'video';
+
+      if (!fileUrl) {
+        return res.status(400).send('URL parameter is required');
+      }
+
+      const response = await fetch(fileUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+
+      if (!response.ok) {
+        return res.redirect(fileUrl);
+      }
+
+      const contentType = response.headers.get('content-type') || `video/${ext}`;
+      const contentLength = response.headers.get('content-length');
+
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.${ext}"`);
+      res.setHeader('Content-Type', contentType);
+      if (contentLength) {
+        res.setHeader('Content-Length', contentLength);
+      }
+
+      if (response.body) {
+        const { Readable } = await import('stream');
+        // @ts-ignore
+        Readable.fromWeb(response.body).pipe(res);
+      } else {
+        const buffer = await response.arrayBuffer();
+        res.send(Buffer.from(buffer));
+      }
+    } catch (error) {
+      const fileUrl = req.query.url as string;
+      if (fileUrl) {
+        res.redirect(fileUrl);
+      } else {
+        res.status(500).send('Download error');
+      }
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

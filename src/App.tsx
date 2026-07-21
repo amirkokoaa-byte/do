@@ -24,7 +24,19 @@ export default function App() {
 
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string>('');
 
-  // load history from localStorage
+  const handleDownload = (mediaUrl: string, ext = 'mp4', title = 'video') => {
+    const cleanTitle = (title || 'video').replace(/[^\w\d\u0600-\u06FF]/g, '_');
+    const proxyUrl = `/api/proxy-download?url=${encodeURIComponent(mediaUrl)}&ext=${ext}&filename=${encodeURIComponent(cleanTitle)}`;
+    
+    // Open proxy link in new window or trigger download link
+    const link = document.createElement('a');
+    link.href = proxyUrl;
+    link.setAttribute('download', `${cleanTitle}.${ext}`);
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   useEffect(() => {
     try {
       const saved = localStorage.getItem('video_downloader_history');
@@ -329,17 +341,27 @@ export default function App() {
                           <Play className="w-4 h-4 fill-blue-700 text-blue-700" />
                           <span>{format.quality}</span>
                         </button>
-                        <a
-                          href={format.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          referrerPolicy="no-referrer"
-                          download
-                          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>تحميل</span>
-                        </a>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(format.url, format.ext || 'mp4', result.title)}
+                            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                            title="تنزيل مباشر على الهاتف أو الكمبيوتر"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>تحميل</span>
+                          </button>
+                          <a
+                            href={format.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            referrerPolicy="no-referrer"
+                            className="text-xs text-blue-600 hover:underline px-1 py-1"
+                            title="فتح الرابط المباشر"
+                          >
+                            مباشر
+                          </a>
+                        </div>
                       </div>
                     );
                   })}
@@ -356,23 +378,25 @@ export default function App() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {result.audios.map((format: any, index: number) => (
-                    <a
+                    <div
                       key={`aud-${index}`}
-                      href={format.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      referrerPolicy="no-referrer"
-                      download
-                      className="flex justify-between items-center px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-purple-700 font-medium transition-colors group"
+                      className="flex justify-between items-center px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-purple-700 font-medium transition-colors"
                     >
                       <span className="text-sm font-semibold flex items-center gap-1.5">
-                        <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                        <Music className="w-4 h-4 text-purple-600" />
                         {format.quality}
                       </span>
-                      <span className="text-xs bg-purple-200/80 px-2.5 py-1 rounded-md text-purple-900 uppercase font-mono">
-                        {format.ext}
-                      </span>
-                    </a>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(format.url, format.ext || 'mp3', `${result.title}_audio`)}
+                          className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>تحميل الصوت</span>
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
