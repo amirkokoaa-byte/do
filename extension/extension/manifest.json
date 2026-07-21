@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Video Downloader Extension",
+  "version": "1.0",
+  "description": "تحميل الفيديوهات من أي موقع باستخدام واجهة برمجة التطبيقات الخاصة بك",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["styles.css"],
+      "js": ["content.js"],
+      "all_frames": true
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
