@@ -94,15 +94,6 @@ async function startServer() {
          const data = await fetchTikTokDirect(url);
          if (data) {
            return res.json({ status: 'success', data });
-         } else {
-           const fallbackData = await fetchFromCobaltFallback(url);
-           if (fallbackData) return res.json({ status: 'success', data: fallbackData });
-           throw new Error("فشل استخراج تيك توك من جميع السيرفرات.");
-         }
-      } else if (lowerUrl.includes('instagram.com') || lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
-         const data = await fetchFromCobaltFallback(url);
-         if (data) {
-           return res.json({ status: 'success', data });
          }
       }
 
@@ -111,6 +102,9 @@ async function startServer() {
         noWarnings: true,
         noCheckCertificate: true,
         skipDownload: true,
+        httpHeaders: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
         extractorArgs: "youtube:player_client=android,web"
       };
 
@@ -171,39 +165,64 @@ async function startServer() {
       // Extract and filter formats
       const videos: any[] = [];
       const audios: any[] = [];
+
+      if (info.url) {
+        videos.push({
+          quality: info.format_note || info.resolution || 'جودة عالية (HD)',
+          ext: info.ext || 'mp4',
+          url: info.url,
+        });
+      }
+
       if (info.formats) {
         for (const f of info.formats) {
+          if (!f.url) continue;
           // Audio only
           if (f.vcodec === 'none' && f.acodec !== 'none') {
             audios.push({
               quality: f.abr ? `${Math.round(f.abr)} kbps` : 'صوت عالي الدقة',
-              ext: f.ext,
+              ext: f.ext || 'mp3',
               url: f.url,
             });
           }
-          // Video (preferably mp4)
-          else if (f.ext === 'mp4' && f.vcodec !== 'none') {
+          // Video
+          else if (f.vcodec !== 'none') {
             videos.push({
-              quality: f.format_note || f.resolution || 'Unknown',
-              ext: f.ext,
+              quality: f.format_note || f.resolution || `${f.height || 'SD'}p`,
+              ext: f.ext || 'mp4',
               url: f.url,
             });
           }
         }
       }
 
-      // Deduplicate by quality
+      if (videos.length === 0 && info.entries && Array.isArray(info.entries)) {
+        for (const entry of info.entries) {
+          if (entry && entry.url) {
+            videos.push({
+              quality: 'جودة عالية (HD)',
+              ext: entry.ext || 'mp4',
+              url: entry.url,
+            });
+          }
+        }
+      }
+
+      // Deduplicate by quality or URL
       const uniqueVideosMap = new Map();
       for (const f of videos) {
-        if (f.quality !== 'Unknown') {
-          uniqueVideosMap.set(f.quality, f);
+        const key = f.quality !== 'Unknown' ? f.quality : f.url;
+        if (!uniqueVideosMap.has(key)) {
+          uniqueVideosMap.set(key, f);
         }
       }
       const uniqueVideos = Array.from(uniqueVideosMap.values());
 
       const uniqueAudiosMap = new Map();
       for (const f of audios) {
-        uniqueAudiosMap.set(f.quality, f);
+        if (!uniqueAudiosMap.has(f.quality)) {
+          uniqueAudiosMap.set(f.quality, f);
+        }
       }
       const uniqueAudios = Array.from(uniqueAudiosMap.values());
 

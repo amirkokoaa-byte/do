@@ -22,6 +22,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string>('');
+
   // load history from localStorage
   useEffect(() => {
     try {
@@ -125,6 +127,9 @@ export default function App() {
       }
 
       setResult(data.data);
+      if (data.data?.videos?.[0]?.url) {
+        setSelectedVideoUrl(data.data.videos[0].url);
+      }
       saveToHistory(queryUrl, data.data);
     } catch (err: any) {
       setError(err.message);
@@ -138,6 +143,9 @@ export default function App() {
     setUrl(item.url);
     if (item.data) {
       setResult(item.data);
+      if (item.data.videos?.[0]?.url) {
+        setSelectedVideoUrl(item.data.videos[0].url);
+      }
       setError('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
@@ -248,6 +256,7 @@ export default function App() {
                 <img 
                   src={result.thumbnail} 
                   alt={result.title} 
+                  referrerPolicy="no-referrer"
                   className="w-full md:w-48 h-32 rounded-lg object-cover shadow-sm shrink-0"
                 />
               ) : (
@@ -267,31 +276,73 @@ export default function App() {
               </div>
             </div>
 
-            {/* قسم تحميل الفيديو */}
+            {/* مشغل الفيديو المباشر */}
             {result.videos && result.videos.length > 0 && (
               <div className="space-y-3">
                 <h3 className="font-bold text-neutral-700 flex items-center gap-2 text-sm md:text-base">
+                  <Play className="w-5 h-5 text-green-600 fill-green-600" />
+                  <span>معاينة وتشغيل الفيديو مباشرة:</span>
+                </h3>
+                <div className="rounded-xl overflow-hidden bg-black shadow-lg border border-neutral-800">
+                  <video
+                    key={selectedVideoUrl || result.videos[0]?.url}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    poster={result.thumbnail}
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
+                    className="w-full max-h-[420px] object-contain mx-auto"
+                  >
+                    <source src={selectedVideoUrl || result.videos[0]?.url} type="video/mp4" />
+                    متصفحك لا يدعم تشغيل الفيديو المباشر.
+                  </video>
+                </div>
+              </div>
+            )}
+
+            {/* قسم تحميل الفيديو */}
+            {result.videos && result.videos.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <h3 className="font-bold text-neutral-700 flex items-center gap-2 text-sm md:text-base">
                   <Film className="w-5 h-5 text-blue-600" />
-                  <span>تحميل كـ فيديو:</span>
+                  <span>تحميل كـ فيديو (اختر الجودة):</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {result.videos.map((format: any, index: number) => (
-                    <a
-                      key={`vid-${index}`}
-                      href={format.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex justify-between items-center px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl text-blue-700 font-medium transition-colors group"
-                    >
-                      <span className="text-sm font-semibold flex items-center gap-1.5">
-                        <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                        {format.quality}
-                      </span>
-                      <span className="text-xs bg-blue-200/80 px-2.5 py-1 rounded-md text-blue-900 uppercase font-mono">
-                        {format.ext}
-                      </span>
-                    </a>
-                  ))}
+                  {result.videos.map((format: any, index: number) => {
+                    const isSelected = selectedVideoUrl === format.url;
+                    return (
+                      <div
+                        key={`vid-${index}`}
+                        className={`flex justify-between items-center px-4 py-3 border rounded-xl font-medium transition-all ${
+                          isSelected
+                            ? 'bg-blue-100 border-blue-400 ring-2 ring-blue-300'
+                            : 'bg-blue-50 hover:bg-blue-100 border-blue-200'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVideoUrl(format.url)}
+                          className="text-sm font-semibold flex items-center gap-1.5 text-blue-800 hover:underline"
+                          title="تشغيل هذه الجودة في المشغل"
+                        >
+                          <Play className="w-4 h-4 fill-blue-700 text-blue-700" />
+                          <span>{format.quality}</span>
+                        </button>
+                        <a
+                          href={format.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          referrerPolicy="no-referrer"
+                          download
+                          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>تحميل</span>
+                        </a>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -310,6 +361,8 @@ export default function App() {
                       href={format.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      referrerPolicy="no-referrer"
+                      download
                       className="flex justify-between items-center px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-purple-700 font-medium transition-colors group"
                     >
                       <span className="text-sm font-semibold flex items-center gap-1.5">
@@ -369,6 +422,7 @@ export default function App() {
                         <img
                           src={item.thumbnail}
                           alt={item.title}
+                          referrerPolicy="no-referrer"
                           className="w-14 h-14 rounded-lg object-cover shrink-0 border border-neutral-200"
                         />
                       ) : (

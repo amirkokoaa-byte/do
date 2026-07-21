@@ -19,27 +19,37 @@ app.add_middleware(
 class VideoRequest(BaseModel):
     url: str
 
-def fetch_from_cobalt_fallback(url: str):
-    headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    data = {"url": url, "vQuality": "1080", "isAudioOnly": False}
+def fetch_tiktok_direct(url: str):
     try:
-        response = requests.post("https://api.cobalt.tools/api/json", headers=headers, json=data, timeout=15)
-        if response.status_code == 200:
-            res_data = response.json()
-            if res_data.get('url'):
+        resp = requests.get(f"https://www.tikwm.com/api/?url={url}", timeout=10)
+        if resp.status_code == 200:
+            res_data = resp.json()
+            if res_data.get('code') == 0 and res_data.get('data'):
+                v_data = res_data['data']
                 return {
-                    "title": "فيديو (تم الجلب عبر سيرفرات الطوارئ)",
-                    "thumbnail": "https://via.placeholder.com/300x169.png?text=Bypassed+Successfully",
+                    "title": v_data.get('title') or "فيديو تيك توك",
+                    "thumbnail": v_data.get('cover'),
                     "duration": "غير معروف",
-                    "videos": [{"quality": "أفضل جودة متاحة", "ext": "mp4", "url": res_data.get('url')}],
-                    "audios": []
+                    "videos": [
+                        {
+                            "quality": "بدون علامة مائية (HD)",
+                            "ext": "mp4",
+                            "url": v_data.get('play')
+                        }
+                    ],
+                    "audios": [
+                        {
+                            "quality": "صوت الفيديو الأصلي",
+                            "ext": "mp3",
+                            "url": v_data.get('music')
+                        }
+                    ]
                 }
     except Exception as e:
-        print(f"Cobalt Fallback Failed: {e}")
+        print(f"TikTok API Error: {e}")
     return None
 
 def get_video_info(url: str):
-    # قراءة الكوكيز المشفرة بـ Base64 من Vercel
     cookie_b64 = os.environ.get("YTDLP_COOKIES_BASE64")
     cookie_file_path = None
 
@@ -48,6 +58,9 @@ def get_video_info(url: str):
         'skip_download': True,
         'no_warnings': True,
         'extract_flat': False,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'web']
@@ -58,63 +71,86 @@ def get_video_info(url: str):
     try:
         if cookie_b64:
             try:
-                # فك التشفير لاستعادة هيكل الأسطر الأصلي
                 cookie_data = base64.b64decode(cookie_b64).decode('utf-8')
-                
-                # إنشاء الملف المؤقت
                 fd, cookie_file_path = tempfile.mkstemp(suffix=".txt", text=True)
                 with os.fdopen(fd, 'w') as f:
                     f.write(cookie_data)
                 ydl_opts['cookiefile'] = cookie_file_path
             except Exception as decode_err:
                 print(f"خطأ في فك تشفير الكوكيز: {decode_err}")
-        else:
-            print("تحذير: لم يتم العثور على YTDLP_COOKIES_BASE64.")
 
-        # بدء عملية الاستخراج
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
             videos = []
             audios = []
             
+            # 1) Direct URL at root level (Instagram, TikTok, FB, Twitter, Reels)
+            direct_url = info.get('url')
+            if direct_url:
+                videos.append({
+                    'quality': info.get('format_note') or info.get('resolution') or 'جودة عالية (HD)',
+                    'ext': info.get('ext') or 'mp4',
+                    'url': direct_url,
+                })
+
+            # 2) Formats array
             for f in info.get('formats', []):
+                f_url = f.get('url')
+                if not f_url:
+                    continue
+                
+                # Audio only
                 if f.get('vcodec') == 'none' and f.get('acodec') != 'none':
                     audios.append({
                         'quality': f"{int(f.get('abr', 0))} kbps" if f.get('abr') else 'صوت',
-                        'ext': f.get('ext'),
-                        'url': f.get('url'),
+                        'ext': f.get('ext') or 'mp3',
+                        'url': f_url,
                     })
-                elif f.get('ext') == 'mp4' and f.get('vcodec') != 'none':
+                # Video format (or video+audio)
+                elif f.get('vcodec') != 'none':
                     videos.append({
-                        'quality': f.get('format_note') or f.get('resolution') or 'Unknown',
-                        'ext': f.get('ext'),
-                        'url': f.get('url'),
+                        'quality': f.get('format_note') or f.get('resolution') or f"{f.get('height', 'SD')}p",
+                        'ext': f.get('ext') or 'mp4',
+                        'url': f_url,
                     })
+
+            # 3) Entries fallback (playlists or reels)
+            if not videos and info.get('entries'):
+                for entry in info['entries']:
+                    if entry and entry.get('url'):
+                        videos.append({
+                            'quality': 'جودة عالية (HD)',
+                            'ext': entry.get('ext') or 'mp4',
+                            'url': entry.get('url')
+                        })
             
-            unique_videos = {f['quality']: f for f in videos if f['quality'] != 'Unknown'}.values()
-            unique_audios = {f['quality']: f for f in audios}.values()
+            # Filter duplicates by URL or quality
+            unique_vids_map = {}
+            for v in videos:
+                key = v['quality'] if v['quality'] != 'Unknown' else v['url']
+                if key not in unique_vids_map:
+                    unique_vids_map[key] = v
+
+            unique_auds_map = {}
+            for a in audios:
+                key = a['quality']
+                if key not in unique_auds_map:
+                    unique_auds_map[key] = a
             
             return {
-                "title": info.get('title'),
+                "title": info.get('title') or "فيديو بدون عنوان",
                 "thumbnail": info.get('thumbnail'),
-                "duration": info.get('duration'),
-                "videos": list(unique_videos),
-                "audios": list(unique_audios)
+                "duration": f"{info.get('duration')} ثانية" if info.get('duration') else "غير معروف",
+                "videos": list(unique_vids_map.values()),
+                "audios": list(unique_auds_map.values())
             }
             
     except Exception as e:
         error_msg = str(e).lower()
-        if "sign in" in error_msg or "bot" in error_msg:
-            print("Vercel IP Blocked even with Cookies! Trying Fallback...")
-            fallback_data = fetch_from_cobalt_fallback(url)
-            if fallback_data:
-                return fallback_data
-            
-        raise Exception(f"يوتيوب يرفض الاتصال بقوة. يرجى التأكد من تشفير الكوكيز بشكل صحيح. تفاصيل الخطأ: {str(e)}")
+        raise Exception(f"فشل جلب بيانات الفيديو: {str(e)}")
         
     finally:
-        # مسح ملف الكوكيز فور الانتهاء
         if cookie_file_path and os.path.exists(cookie_file_path):
             os.remove(cookie_file_path)
 
@@ -126,16 +162,14 @@ async def download_video(request: VideoRequest):
     url = request.url.lower()
     
     try:
-        if "tiktok.com" in url or "instagram.com" in url or "twitter.com" in url or "x.com" in url:
-            data = fetch_from_cobalt_fallback(request.url)
+        if "tiktok.com" in url:
+            data = fetch_tiktok_direct(request.url)
             if data:
                 return {"status": "success", "data": data}
-            else:
-                data = get_video_info(request.url)
-                return {"status": "success", "data": data}
-        else:
-            data = get_video_info(request.url)
-            return {"status": "success", "data": data}
+            
+        data = get_video_info(request.url)
+        return {"status": "success", "data": data}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
